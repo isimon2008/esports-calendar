@@ -105,6 +105,10 @@ button:active{transform:scale(.97)}
 .chip{height:28px;border-radius:999px;font-size:12.5px;font-weight:600;padding:0 11px;display:inline-flex;align-items:center;gap:6px}
 .chip i{width:8px;height:8px;border-radius:50%;display:inline-block}
 .chip.off{opacity:.4}
+.seg{display:inline-flex;background:var(--surface-2);border:1px solid var(--line);border-radius:10px;padding:2px;gap:2px}
+.seg button{border:0;background:transparent;height:30px;border-radius:8px;font-size:13px;font-weight:600;color:var(--muted);display:inline-flex;align-items:center;gap:6px;padding:0 11px}
+.seg button i{width:8px;height:8px;border-radius:50%;display:inline-block}
+.seg button.on{background:var(--surface);color:var(--text);box-shadow:0 1px 3px rgba(0,0,0,.15)}
 .dow,.grid{display:grid;grid-template-columns:repeat(7,1fr)}
 .dow{padding:0 8px;font-size:12px;color:var(--faint);text-align:center}
 .dow div{padding:4px 0}
@@ -199,8 +203,11 @@ footer a{color:var(--muted)}
       <button id="next" aria-label="下个月">›</button>
     </div>
     <div class="filters">
-      <button class="chip" data-g="cs"><i style="background:var(--cs)"></i>CS · S级</button>
-      <button class="chip" data-g="kpl"><i style="background:var(--kpl)"></i>KPL</button>
+      <div class="seg" role="radiogroup" aria-label="显示哪些比赛">
+        <button data-v="all" role="radio">CS + KPL</button>
+        <button data-v="kpl" role="radio"><i style="background:var(--kpl)"></i>只看 KPL</button>
+        <button data-v="cs" role="radio"><i style="background:var(--cs)"></i>只看 CS</button>
+      </div>
       <span class="sub" style="margin-left:auto;align-self:center">色条 = 赛事进行中</span>
     </div>
     <div class="dow"><div>一</div><div>二</div><div>三</div><div>四</div><div>五</div><div>六</div><div>日</div></div>
@@ -237,6 +244,7 @@ const state = {
   y:+t0.slice(0,4), m:+t0.slice(5,7), sel:t0,
   show: Object.assign({cs:true,kpl:true}, store('show')||{})
 };
+if (!state.show.cs && !state.show.kpl) state.show = {cs:true,kpl:true};
 
 /* ---------- clock ---------- */
 function tick(){ document.getElementById('clock').textContent = chiTime(Date.now()); }
@@ -369,7 +377,10 @@ function renderCal(){
     return `<button class="day ${D.out?'out':''} ${D.s===today?'today':''} ${D.s===state.sel?'sel':''}" data-d="${D.s}" title="${esc(tip)}">
       <span class="n">${D.d}</span>${bars}${pills}<span class="dots">${dots}</span></button>`;
   }).join('');
-  document.querySelectorAll('.chip').forEach(c=>c.classList.toggle('off', !state.show[c.dataset.g]));
+  const mode = state.show.cs && state.show.kpl ? 'all' : state.show.cs ? 'cs' : 'kpl';
+  document.querySelectorAll('.seg button').forEach(b=>{
+    const on = b.dataset.v===mode; b.classList.toggle('on', on); b.setAttribute('aria-checked', on);
+  });
 }
 
 function renderDetail(){
@@ -441,8 +452,9 @@ document.getElementById('grid').addEventListener('click', e=>{
 document.getElementById('detail').addEventListener('click', e=>{
   const a = e.target.closest('[data-go]'); if (a){ e.preventDefault(); go(a.dataset.go); }
 });
-document.querySelectorAll('.chip').forEach(c=>c.onclick=()=>{
-  state.show[c.dataset.g] = !state.show[c.dataset.g]; store('show', state.show); renderAll();
+document.querySelectorAll('.seg button').forEach(b=>b.onclick=()=>{
+  const v = b.dataset.v;
+  state.show = {cs: v!=='kpl', kpl: v!=='cs'}; store('show', state.show); renderAll();
 });
 // swipe months on phone
 let sx=null, sy=null;
