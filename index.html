@@ -1,0 +1,466 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>我的赛程日历</title>
+<meta name="description" content="KPL 全部比赛 + CS S 级赛事 + 今日 NBA，芝加哥时间">
+<meta name="theme-color" content="#0f1115" media="(prefers-color-scheme: dark)">
+<meta name="theme-color" content="#f5f6f8" media="(prefers-color-scheme: light)">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<meta name="apple-mobile-web-app-title" content="赛程">
+<link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 64 64'%3E%3Crect width='64' height='64' rx='14' fill='%230f1115'/%3E%3Crect x='10' y='16' width='44' height='38' rx='6' fill='none' stroke='%23f59e0b' stroke-width='4'/%3E%3Cpath d='M10 26h44' stroke='%23f59e0b' stroke-width='4'/%3E%3Ccircle cx='24' cy='38' r='4' fill='%23a78bfa'/%3E%3Ccircle cx='40' cy='38' r='4' fill='%23ef4444'/%3E%3C/svg%3E">
+<link rel="apple-touch-icon" href="icon.png">
+<style>
+:root{
+  --bg:#f5f6f8; --surface:#ffffff; --surface-2:#eef0f4; --line:#e2e5eb;
+  --text:#14161b; --muted:#6b7280; --faint:#9aa1ad;
+  --cs:#d97706; --cs-soft:rgba(217,119,6,.13);
+  --kpl:#7c3aed; --kpl-soft:rgba(124,58,237,.12);
+  --nba:#dc2626; --nba-soft:rgba(220,38,38,.10);
+  --live:#16a34a; --accent:#2563eb;
+  --today-ring:#2563eb;
+  --shadow:0 1px 2px rgba(0,0,0,.05),0 4px 16px rgba(0,0,0,.04);
+}
+@media (prefers-color-scheme: dark){
+  :root:not([data-theme="light"]){
+    --bg:#0f1115; --surface:#171a21; --surface-2:#1f232c; --line:#2a2f3a;
+    --text:#eceef2; --muted:#9aa1ad; --faint:#6b7280;
+    --cs:#f59e0b; --cs-soft:rgba(245,158,11,.16);
+    --kpl:#a78bfa; --kpl-soft:rgba(167,139,250,.16);
+    --nba:#f87171; --nba-soft:rgba(248,113,113,.13);
+    --live:#4ade80; --accent:#60a5fa; --today-ring:#60a5fa;
+    --shadow:none;
+  }
+}
+:root[data-theme="dark"]{
+  --bg:#0f1115; --surface:#171a21; --surface-2:#1f232c; --line:#2a2f3a;
+  --text:#eceef2; --muted:#9aa1ad; --faint:#6b7280;
+  --cs:#f59e0b; --cs-soft:rgba(245,158,11,.16);
+  --kpl:#a78bfa; --kpl-soft:rgba(167,139,250,.16);
+  --nba:#f87171; --nba-soft:rgba(248,113,113,.13);
+  --live:#4ade80; --accent:#60a5fa; --today-ring:#60a5fa;
+  --shadow:none;
+}
+*{box-sizing:border-box}
+html,body{margin:0}
+body{
+  background:var(--bg); color:var(--text);
+  font:15px/1.45 -apple-system,BlinkMacSystemFont,"PingFang SC","Hiragino Sans GB","Microsoft YaHei","Segoe UI",Roboto,sans-serif;
+  -webkit-font-smoothing:antialiased; -webkit-tap-highlight-color:transparent;
+  padding:env(safe-area-inset-top) 0 env(safe-area-inset-bottom);
+}
+a{color:inherit}
+.wrap{max-width:980px;margin:0 auto;padding:12px 16px 40px}
+header.top{display:flex;align-items:flex-end;justify-content:space-between;gap:12px;padding:8px 0 14px}
+header.top h1{margin:0;font-size:22px;letter-spacing:.5px}
+.sub{color:var(--muted);font-size:12.5px}
+.clock{font-variant-numeric:tabular-nums;text-align:right}
+.clock b{font-size:18px;display:block;color:var(--text)}
+
+section.card{background:var(--surface);border:1px solid var(--line);border-radius:16px;box-shadow:var(--shadow);margin-bottom:14px;overflow:hidden}
+.card-h{display:flex;align-items:center;justify-content:space-between;padding:12px 14px 8px;gap:8px}
+.card-h h2{margin:0;font-size:16px;display:flex;align-items:center;gap:8px}
+.tag{display:inline-flex;align-items:center;font-size:11px;font-weight:700;letter-spacing:.4px;padding:2px 7px;border-radius:6px;line-height:1.4;white-space:nowrap}
+.tag.cs{background:var(--cs-soft);color:var(--cs)}
+.tag.kpl{background:var(--kpl-soft);color:var(--kpl)}
+.tag.nba{background:var(--nba-soft);color:var(--nba)}
+.tag.live{background:transparent;color:var(--live);gap:5px;padding-left:0}
+.tag.live::before{content:"";width:7px;height:7px;border-radius:50%;background:var(--live);animation:pulse 1.4s infinite}
+@keyframes pulse{50%{opacity:.25}}
+
+/* NBA */
+.nba-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(270px,1fr));gap:10px;padding:4px 12px 14px}
+.game{min-width:0;background:var(--surface-2);border-radius:12px;padding:10px 12px;cursor:pointer;border:1px solid transparent;transition:border-color .15s}
+.game:hover{border-color:var(--line)}
+.game .meta{display:flex;justify-content:space-between;font-size:12px;color:var(--muted);margin-bottom:6px;gap:8px}
+.game .meta .st{white-space:nowrap}
+.game .meta .tv{white-space:nowrap;overflow:hidden;text-overflow:ellipsis;min-width:0}
+.game .meta .st{font-weight:600}
+.game .meta .st.in{color:var(--live)}
+.team{display:flex;align-items:center;gap:9px;padding:3px 0}
+.team img{width:28px;height:28px;object-fit:contain;flex:none}
+.team .nm{flex:1;min-width:0;display:flex;flex-direction:column;line-height:1.2}
+.team .nm b{font-size:14.5px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.team .nm span{font-size:11.5px;color:var(--faint)}
+.team .sc{font-size:22px;font-weight:700;font-variant-numeric:tabular-nums;min-width:40px;text-align:right}
+.team.lose .sc,.team.lose .nm b{color:var(--muted);font-weight:500}
+.game .more{display:none;margin-top:8px;padding-top:8px;border-top:1px dashed var(--line);font-size:12.5px;color:var(--muted)}
+.game.open .more{display:block}
+.more table{width:100%;border-collapse:collapse;font-variant-numeric:tabular-nums;margin-bottom:6px}
+.more th,.more td{padding:2px 4px;text-align:center}
+.more th:first-child,.more td:first-child{text-align:left}
+.more .ldr{display:grid;grid-template-columns:auto 1fr 1fr;gap:2px 8px}
+.more .ldr div{white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.empty{padding:8px 14px 16px;color:var(--muted);font-size:13.5px}
+
+/* calendar */
+.cal-h{display:flex;align-items:center;gap:6px;padding:12px 12px 6px}
+.cal-h h2{margin:0 auto 0 4px;font-size:18px;font-variant-numeric:tabular-nums}
+button{font:inherit;color:inherit;background:var(--surface-2);border:1px solid var(--line);border-radius:10px;height:34px;min-width:34px;padding:0 10px;cursor:pointer}
+button:active{transform:scale(.97)}
+.filters{display:flex;gap:6px;padding:0 12px 8px;flex-wrap:wrap}
+.chip{height:28px;border-radius:999px;font-size:12.5px;font-weight:600;padding:0 11px;display:inline-flex;align-items:center;gap:6px}
+.chip i{width:8px;height:8px;border-radius:50%;display:inline-block}
+.chip.off{opacity:.4}
+.dow,.grid{display:grid;grid-template-columns:repeat(7,1fr)}
+.dow{padding:0 8px;font-size:12px;color:var(--faint);text-align:center}
+.dow div{padding:4px 0}
+.grid{padding:0 8px 10px;gap:3px;touch-action:pan-y}
+.day{position:relative;min-height:84px;border-radius:10px;padding:5px 5px 4px;background:transparent;border:1px solid transparent;cursor:pointer;display:flex;flex-direction:column;gap:3px;overflow:hidden;text-align:left;height:auto;min-width:0}
+.day:hover{background:var(--surface-2)}
+.day.out{opacity:.35}
+.day .n{font-size:13px;font-weight:600;font-variant-numeric:tabular-nums;width:24px;height:24px;display:flex;align-items:center;justify-content:center;border-radius:50%}
+.day.today .n{background:var(--today-ring);color:#fff}
+.day.sel{border-color:var(--today-ring);background:var(--surface-2)}
+.bar{height:4px;border-radius:2px;margin:0 -5px}
+.bar.cs{background:var(--cs)} .bar.kpl{background:var(--kpl)}
+.bar.start{margin-left:0;border-top-left-radius:3px;border-bottom-left-radius:3px}
+.bar.end{margin-right:0}
+.pill{font-size:11px;font-weight:700;border-radius:5px;padding:1px 4px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;line-height:1.35}
+.pill.cs{background:var(--cs-soft);color:var(--cs)}
+.pill.kpl{background:var(--kpl-soft);color:var(--kpl)}
+.dots{display:none;gap:3px;justify-content:center;margin-top:auto}
+.dots i{width:6px;height:6px;border-radius:50%}
+.dots i.cs{background:var(--cs)} .dots i.kpl{background:var(--kpl)}
+
+/* day detail */
+.detail{padding:4px 14px 14px}
+.detail h3{margin:6px 0 10px;font-size:15px}
+.tours{display:flex;flex-wrap:wrap;gap:6px;margin-bottom:10px}
+.tour{font-size:12.5px;text-decoration:none;border-radius:8px;padding:4px 9px;border:1px solid var(--line);display:inline-flex;gap:6px;align-items:center}
+.tour i{width:8px;height:8px;border-radius:50%}
+.tour.cs i{background:var(--cs)} .tour.kpl i{background:var(--kpl)}
+.tour small{color:var(--muted)}
+.m{display:grid;grid-template-columns:52px 1fr;gap:10px;padding:10px 0;border-top:1px solid var(--line);text-decoration:none}
+.m:first-of-type{border-top:0}
+.m .tm{font-variant-numeric:tabular-nums;font-weight:700;font-size:15px}
+.m .tm small{display:block;font-weight:500;font-size:11px;color:var(--faint)}
+.m .vs{display:flex;align-items:center;gap:8px;font-size:15px;font-weight:600;flex-wrap:wrap}
+.m .vs .s{font-variant-numeric:tabular-nums;color:var(--muted);font-weight:700}
+.m .vs .w{color:var(--text)} .m .vs .l{color:var(--muted);font-weight:500}
+.m .ev{font-size:12.5px;color:var(--muted);margin-top:2px;display:flex;gap:6px;align-items:center;flex-wrap:wrap}
+.m.past{opacity:.78}
+.next{margin-top:6px;font-size:13px;color:var(--muted)}
+.next a{color:var(--accent);cursor:pointer;text-decoration:underline}
+footer{color:var(--faint);font-size:12px;text-align:center;padding:8px 0;line-height:1.7}
+footer a{color:var(--muted)}
+.warn{color:var(--cs)}
+
+@media (max-width:640px){
+  .wrap{padding:8px 10px 30px}
+  header.top h1{font-size:20px}
+  .day{min-height:58px;padding:3px 2px;align-items:center}
+  .day .n{font-size:12.5px;width:22px;height:22px}
+  .pill{display:none}
+  .dots{display:flex}
+  .bar{margin:0 -2px;height:3px;align-self:stretch}
+  .bar.start{margin-left:0} .bar.end{margin-right:0}
+  .grid{gap:2px;padding:0 4px 8px}
+  .dow{padding:0 4px}
+  .nba-grid{grid-template-columns:1fr 1fr;gap:8px;padding:2px 10px 12px}
+  .game{padding:8px 9px}
+  .game.open{grid-column:1/-1}
+  .game .meta{margin-bottom:3px;font-size:11.5px}
+  .game:not(.open) .meta .tv{display:none}
+  .team{gap:6px;padding:2px 0}
+  .team img{width:22px;height:22px}
+  .team .nm b{font-size:14px}
+  .game:not(.open) .team .nm span{display:none}
+  .team .sc{font-size:18px;min-width:30px}
+}
+</style>
+</head>
+<body>
+<div class="wrap">
+  <header class="top">
+    <div>
+      <h1>赛程日历</h1>
+      <div class="sub">KPL 全部 · CS S级 · 今日 NBA</div>
+    </div>
+    <div class="clock sub"><b id="clock">--:--</b>芝加哥时间</div>
+  </header>
+
+  <section class="card" id="nba" hidden>
+    <div class="card-h">
+      <h2><span class="tag nba">NBA</span><span id="nbaTitle">今日比赛</span></h2>
+      <span class="sub" id="nbaUpd"></span>
+    </div>
+    <div class="nba-grid" id="nbaGrid"></div>
+  </section>
+
+  <section class="card">
+    <div class="cal-h">
+      <button id="prev" aria-label="上个月">‹</button>
+      <h2 id="monthTitle"></h2>
+      <button id="todayBtn">今天</button>
+      <button id="next" aria-label="下个月">›</button>
+    </div>
+    <div class="filters">
+      <button class="chip" data-g="cs"><i style="background:var(--cs)"></i>CS · S级</button>
+      <button class="chip" data-g="kpl"><i style="background:var(--kpl)"></i>KPL</button>
+      <span class="sub" style="margin-left:auto;align-self:center">色条 = 赛事进行中</span>
+    </div>
+    <div class="dow"><div>一</div><div>二</div><div>三</div><div>四</div><div>五</div><div>六</div><div>日</div></div>
+    <div class="grid" id="grid"></div>
+  </section>
+
+  <section class="card">
+    <div class="detail" id="detail"></div>
+  </section>
+
+  <footer id="foot"></footer>
+</div>
+
+<script>
+const TZ = 'America/Chicago';
+const GAMES = { cs:'CS', kpl:'KPL' };
+const NBA_CN = {ATL:'老鹰',BOS:'凯尔特人',BKN:'篮网',CHA:'黄蜂',CHI:'公牛',CLE:'骑士',DAL:'独行侠',DEN:'掘金',DET:'活塞',GS:'勇士',HOU:'火箭',IND:'步行者',LAC:'快船',LAL:'湖人',MEM:'灰熊',MIA:'热火',MIL:'雄鹿',MIN:'森林狼',NO:'鹈鹕',NY:'尼克斯',OKC:'雷霆',ORL:'魔术',PHI:'76人',PHX:'太阳',POR:'开拓者',SAC:'国王',SA:'马刺',TOR:'猛龙',UTAH:'爵士',WSH:'奇才'};
+const WEEK = ['日','一','二','三','四','五','六'];
+
+const dFmt = new Intl.DateTimeFormat('en-CA',{timeZone:TZ,year:'numeric',month:'2-digit',day:'2-digit'});
+const tFmt = new Intl.DateTimeFormat('en-GB',{timeZone:TZ,hour:'2-digit',minute:'2-digit',hour12:false});
+const chiDate = ms => dFmt.format(new Date(ms));          // YYYY-MM-DD
+const chiTime = ms => tFmt.format(new Date(ms));          // HH:mm
+const todayStr = () => chiDate(Date.now());
+const esc = s => String(s ?? '').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
+const pad = n => String(n).padStart(2,'0');
+const ymd = (y,m,d) => `${y}-${pad(m)}-${pad(d)}`;
+function store(k,v){try{ if(v===undefined) return JSON.parse(localStorage.getItem(k)); localStorage.setItem(k,JSON.stringify(v)); }catch(e){ return null; }}
+
+let DATA = {matches:[],tournaments:[],updated:0,errors:[]};
+let byDay = {};
+const t0 = todayStr();
+const state = {
+  y:+t0.slice(0,4), m:+t0.slice(5,7), sel:t0,
+  show: Object.assign({cs:true,kpl:true}, store('show')||{})
+};
+
+/* ---------- clock ---------- */
+function tick(){ document.getElementById('clock').textContent = chiTime(Date.now()); }
+tick(); setInterval(tick, 15000);
+
+/* ---------- NBA (ESPN, live) ---------- */
+let nbaTimer = null;
+async function loadNBA(){
+  const today = todayStr();
+  const url = `https://site.api.espn.com/apis/site/v2/sports/basketball/nba/scoreboard?dates=${today.replace(/-/g,'')}`;
+  try{
+    const r = await fetch(url,{cache:'no-store'});
+    const j = await r.json();
+    const evs = (j.events||[]).filter(e => chiDate(Date.parse(e.date)) === today)
+      .sort((a,b)=>Date.parse(a.date)-Date.parse(b.date));
+    renderNBA(evs);
+    const live = evs.some(e=>e.status?.type?.state==='in');
+    const pending = evs.some(e=>e.status?.type?.state!=='post');
+    clearTimeout(nbaTimer);
+    if (pending) nbaTimer = setTimeout(loadNBA, live ? 30000 : 300000);
+  }catch(e){
+    console.warn('NBA load failed', e);
+  }
+}
+function renderNBA(evs){
+  const box = document.getElementById('nba');
+  if (!evs.length){ box.hidden = true; return; }
+  box.hidden = false;
+  const openIds = new Set([...document.querySelectorAll('.game.open')].map(g=>g.dataset.id));
+  const live = evs.filter(e=>e.status.type.state==='in').length;
+  document.getElementById('nbaTitle').innerHTML = `今日 ${evs.length} 场` + (live?` <span class="tag live">${live} 场进行中</span>`:'');
+  document.getElementById('nbaUpd').textContent = '更新 ' + chiTime(Date.now());
+  document.getElementById('nbaGrid').innerHTML = evs.map(e=>{
+    const c = e.competitions[0], st = e.status.type;
+    const home = c.competitors.find(x=>x.homeAway==='home'), away = c.competitors.find(x=>x.homeAway==='away');
+    const done = st.state==='post', pre = st.state==='pre';
+    const stTxt = pre ? chiTime(Date.parse(e.date)) + ' 开赛'
+                : done ? '已结束' + (/OT/.test(st.shortDetail)? ' (加时)':'')
+                : esc(st.shortDetail);
+    const tv = (c.broadcasts||[]).flatMap(b=>b.names||[]).slice(0,2).join(' / ');
+    const row = t => {
+      const ab = t.team.abbreviation;
+      const rec = (t.records||[]).find(r=>r.type==='total')?.summary || '';
+      const lose = done && !t.winner;
+      return `<div class="team ${lose?'lose':''}">
+        <img src="${esc(t.team.logo)}" alt="" loading="lazy" onerror="this.style.visibility='hidden'">
+        <div class="nm"><b>${esc(NBA_CN[ab]||t.team.shortDisplayName)}</b><span>${esc(t.team.shortDisplayName)}${rec?' · '+esc(rec):''}</span></div>
+        <div class="sc">${pre?'':esc(t.score)}</div></div>`;
+    };
+    // details: quarter line scores + leaders
+    let more = '';
+    if (!pre){
+      const n = Math.max(...[away,home].map(t=>(t.linescores||[]).length));
+      if (n){
+        const hd = Array.from({length:n},(_,i)=>`<th>${i<4?'Q'+(i+1):'OT'+(i-3)}</th>`).join('');
+        const tr = t => `<tr><td>${esc(NBA_CN[t.team.abbreviation]||t.team.abbreviation)}</td>${Array.from({length:n},(_,i)=>`<td>${esc(t.linescores?.[i]?.displayValue??'-')}</td>`).join('')}<td><b>${esc(t.score)}</b></td></tr>`;
+        more += `<table><tr><th></th>${hd}<th>总</th></tr>${tr(away)}${tr(home)}</table>`;
+      }
+    }
+    const LBL = {points:'得分',rebounds:'篮板',assists:'助攻'};
+    const ld = t => Object.keys(LBL).map(k=>{
+      const L = (t.leaders||[]).find(l=>l.name===k)?.leaders?.[0];
+      return L ? `${esc(L.athlete.shortName)} ${esc(L.displayValue)}` : '-';
+    });
+    const la = ld(away), lh = ld(home);
+    if (la.some(x=>x!=='-') || lh.some(x=>x!=='-')){
+      more += `<div style="margin:4px 0 3px">${pre?'球队赛季场均领跑':'本场数据王'}</div><div class="ldr">` +
+        Object.values(LBL).map((lab,i)=>`<div>${lab}</div><div>${la[i]}</div><div>${lh[i]}</div>`).join('') + `</div>`;
+    }
+    if (c.venue?.fullName) more += `<div style="margin-top:6px">📍 ${esc(c.venue.fullName)}</div>`;
+    const id = esc(e.id);
+    return `<div class="game ${openIds.has(e.id)?'open':''}" data-id="${id}">
+      <div class="meta"><span class="st ${st.state}">${st.state==='in'?'● ':''}${stTxt}</span><span class="tv">${esc(tv)}</span></div>
+      ${row(away)}${row(home)}
+      <div class="more">${more || '暂无更多数据'}</div></div>`;
+  }).join('');
+}
+document.getElementById('nbaGrid').addEventListener('click', e=>{
+  const g = e.target.closest('.game'); if (g) g.classList.toggle('open');
+});
+
+/* ---------- esports data ---------- */
+async function loadData(){
+  try{
+    const r = await fetch('data.json?_=' + Math.floor(Date.now()/600000), {cache:'no-store'});
+    DATA = await r.json();
+  }catch(e){
+    console.warn('data.json load failed', e);
+    DATA.errors = ['无法读取 data.json'];
+  }
+  byDay = {};
+  for (const m of DATA.matches){
+    const d = chiDate(m.ts*1000);
+    (byDay[d] ||= []).push(m);
+  }
+  renderAll();
+}
+
+function toursOn(d){
+  return DATA.tournaments.filter(t => state.show[t.game] && t.start <= d && d <= t.end);
+}
+function matchesOn(d){
+  return (byDay[d]||[]).filter(m=>state.show[m.game]).sort((a,b)=>a.ts-b.ts);
+}
+
+function renderCal(){
+  const {y,m} = state;
+  document.getElementById('monthTitle').textContent = `${y}年${m}月`;
+  const first = new Date(Date.UTC(y,m-1,1));
+  const lead = (first.getUTCDay()+6)%7;           // Monday-first
+  const start = new Date(Date.UTC(y,m-1,1-lead));
+  const days = [];
+  const total = Math.ceil((lead + new Date(Date.UTC(y,m,0)).getUTCDate())/7)*7;
+  for (let i=0;i<total;i++){
+    const dt = new Date(start.getTime()+i*86400000);
+    days.push({s: ymd(dt.getUTCFullYear(),dt.getUTCMonth()+1,dt.getUTCDate()), d: dt.getUTCDate(), out: dt.getUTCMonth()!==m-1, dow: i%7});
+  }
+  const today = todayStr();
+  document.getElementById('grid').innerHTML = days.map(D=>{
+    const ms = matchesOn(D.s), ts = toursOn(D.s);
+    const cnt = {cs:0,kpl:0}; ms.forEach(x=>cnt[x.game]++);
+    const bars = ['cs','kpl'].filter(g=>ts.some(t=>t.game===g)).map(g=>{
+      const isStart = ts.some(t=>t.game===g && (t.start===D.s)) || D.dow===0;
+      const isEnd = ts.some(t=>t.game===g && (t.end===D.s)) || D.dow===6;
+      return `<div class="bar ${g} ${isStart&&ts.some(t=>t.game===g&&t.start===D.s)?'start':''} ${isEnd&&ts.some(t=>t.game===g&&t.end===D.s)?'end':''}"></div>`;
+    }).join('');
+    const pills = ['cs','kpl'].filter(g=>cnt[g]).map(g=>`<div class="pill ${g}">${GAMES[g]} ${cnt[g]}场</div>`).join('');
+    const dots = ['cs','kpl'].filter(g=>cnt[g]).map(g=>`<i class="${g}"></i>`).join('');
+    const tip = ts.map(t=>t.name).join(' / ');
+    return `<button class="day ${D.out?'out':''} ${D.s===today?'today':''} ${D.s===state.sel?'sel':''}" data-d="${D.s}" title="${esc(tip)}">
+      <span class="n">${D.d}</span>${bars}${pills}<span class="dots">${dots}</span></button>`;
+  }).join('');
+  document.querySelectorAll('.chip').forEach(c=>c.classList.toggle('off', !state.show[c.dataset.g]));
+}
+
+function renderDetail(){
+  const d = state.sel;
+  const [Y,M,Dd] = d.split('-').map(Number);
+  const dow = WEEK[new Date(Date.UTC(Y,M-1,Dd)).getUTCDay()];
+  const rel = d===todayStr() ? '（今天）' : '';
+  const ts = toursOn(d), ms = matchesOn(d);
+  const now = Date.now()/1000;
+  let h = `<h3>${M}月${Dd}日 周${dow}${rel}</h3>`;
+  if (ts.length){
+    h += `<div class="tours">` + ts.map(t=>`<a class="tour ${t.game}" href="${esc(t.link)}" target="_blank" rel="noopener"><i></i>${esc(t.name)} <small>${t.start.slice(5).replace('-','/')}–${t.end.slice(5).replace('-','/')}</small></a>`).join('') + `</div>`;
+  }
+  if (ms.length){
+    h += ms.map(x=>{
+      let sc = '';
+      let c1 = '', c2 = '';
+      if (x.score && /\d/.test(x.score)){
+        const p = x.score.split(':').map(Number);
+        if (p.length===2 && !isNaN(p[0])){ c1 = p[0]>p[1]?'w':p[0]<p[1]?'l':''; c2 = p[1]>p[0]?'w':p[1]<p[0]?'l':''; }
+        sc = `<span class="s">${esc(x.score)}</span>`;
+      } else sc = `<span class="s">vs</span>`;
+      const liveish = !x.score && x.ts <= now && now < x.ts + 4*3600;
+      const past = x.ts + 4*3600 < now;
+      return `<a class="m ${past?'past':''}" href="${esc(x.link)}" target="_blank" rel="noopener">
+        <div class="tm">${chiTime(x.ts*1000)}<small>${esc(x.bo)}</small></div>
+        <div><div class="vs"><span class="${c1}">${esc(x.t1)}</span>${sc}<span class="${c2}">${esc(x.t2)}</span>${liveish?'<span class="tag live">可能进行中</span>':''}</div>
+        <div class="ev"><span class="tag ${x.game}">${GAMES[x.game]}</span>${esc(x.event)}</div></div></a>`;
+    }).join('');
+  } else {
+    h += `<div class="sub">${ts.length ? '赛事进行中，但这一天的具体对阵还没公布（或当天休赛）。' : '这一天没有 KPL / CS S级比赛。'}</div>`;
+  }
+  // next upcoming after selected day
+  const nextM = DATA.matches.filter(x=>state.show[x.game] && chiDate(x.ts*1000) > d).sort((a,b)=>a.ts-b.ts)[0];
+  if (!ms.length && nextM){
+    const nd = chiDate(nextM.ts*1000);
+    h += `<div class="next">下一场：<a data-go="${nd}">${+nd.slice(5,7)}月${+nd.slice(8)}日 ${chiTime(nextM.ts*1000)} · ${GAMES[nextM.game]} ${esc(nextM.t1)} vs ${esc(nextM.t2)}</a></div>`;
+  }
+  document.getElementById('detail').innerHTML = h;
+}
+
+function renderFoot(){
+  const u = DATA.updated ? new Date(DATA.updated*1000) : null;
+  const upd = u ? `${chiDate(u)} ${chiTime(u)}` : '未知';
+  const err = (DATA.errors||[]).length ? `<br><span class="warn">部分数据源抓取失败：${esc(DATA.errors.join('；'))}</span>` : '';
+  document.getElementById('foot').innerHTML =
+    `电竞数据更新于 ${upd}（芝加哥时间）· 来源 <a href="https://liquipedia.net" target="_blank" rel="noopener">Liquipedia</a> (CC-BY-SA)<br>NBA 实时数据来自 ESPN · 所有时间均为芝加哥时间${err}`;
+}
+function renderAll(){ renderCal(); renderDetail(); renderFoot(); }
+
+/* ---------- interactions ---------- */
+function shift(n){
+  let m = state.m + n, y = state.y;
+  while (m<1){m+=12;y--} while(m>12){m-=12;y++}
+  state.y=y; state.m=m; renderCal();
+}
+function go(d){
+  state.sel = d; state.y = +d.slice(0,4); state.m = +d.slice(5,7);
+  renderCal(); renderDetail();
+}
+document.getElementById('prev').onclick = ()=>shift(-1);
+document.getElementById('next').onclick = ()=>shift(1);
+document.getElementById('todayBtn').onclick = ()=>go(todayStr());
+document.getElementById('grid').addEventListener('click', e=>{
+  const b = e.target.closest('.day'); if (!b) return;
+  go(b.dataset.d);
+  if (matchMedia('(max-width:640px)').matches) document.getElementById('detail').scrollIntoView({behavior:'smooth',block:'start'});
+});
+document.getElementById('detail').addEventListener('click', e=>{
+  const a = e.target.closest('[data-go]'); if (a){ e.preventDefault(); go(a.dataset.go); }
+});
+document.querySelectorAll('.chip').forEach(c=>c.onclick=()=>{
+  state.show[c.dataset.g] = !state.show[c.dataset.g]; store('show', state.show); renderAll();
+});
+// swipe months on phone
+let sx=null, sy=null;
+const grid = document.getElementById('grid');
+grid.addEventListener('touchstart',e=>{sx=e.touches[0].clientX; sy=e.touches[0].clientY},{passive:true});
+grid.addEventListener('touchend',e=>{
+  if (sx===null) return;
+  const dx=e.changedTouches[0].clientX-sx, dy=e.changedTouches[0].clientY-sy;
+  if (Math.abs(dx)>60 && Math.abs(dx)>Math.abs(dy)*1.5) shift(dx<0?1:-1);
+  sx=null;
+});
+// refresh when returning to the app
+document.addEventListener('visibilitychange',()=>{
+  if (document.visibilityState==='visible'){ loadNBA(); loadData(); }
+});
+
+loadNBA();
+loadData();
+</script>
+</body>
+</html>
