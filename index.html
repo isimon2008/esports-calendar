@@ -139,14 +139,20 @@ button:active{transform:scale(.97)}
 .tour.cs i{background:var(--cs)} .tour.kpl i{background:var(--kpl)}
 .tour small{color:var(--muted)}
 .m{display:grid;grid-template-columns:52px 1fr;gap:10px;padding:10px 0;border-top:1px solid var(--line);text-decoration:none}
-.m:first-of-type{border-top:0}
+.tours + .m,h3 + .m{border-top:0}
 .m .tm{font-variant-numeric:tabular-nums;font-weight:700;font-size:15px}
 .m .tm small{display:block;font-weight:500;font-size:11px;color:var(--faint)}
 .m .vs{display:flex;align-items:center;gap:8px;font-size:15px;font-weight:600;flex-wrap:wrap}
 .m .vs .s{font-variant-numeric:tabular-nums;color:var(--muted);font-weight:700}
 .m .vs .w{color:var(--text)} .m .vs .l{color:var(--muted);font-weight:500}
 .m .ev{font-size:12.5px;color:var(--muted);margin-top:2px;display:flex;gap:6px;align-items:center;flex-wrap:wrap}
-.m.past{opacity:.78}
+.m.past .vs,.m.past .tm{opacity:.8}
+.m .ev a{text-decoration:none}
+.m .ev a:hover{text-decoration:underline}
+.vods{display:flex;flex-wrap:wrap;gap:6px;margin-top:7px}
+.vod{font-size:12.5px;font-weight:600;text-decoration:none;padding:5px 10px;border-radius:8px;background:var(--nba-soft);color:var(--nba);white-space:nowrap}
+.vod.alt{background:var(--surface-2);color:var(--muted);border:1px solid var(--line)}
+.vod:active{transform:scale(.97)}
 .next{margin-top:6px;font-size:13px;color:var(--muted)}
 .next a{color:var(--accent);cursor:pointer;text-decoration:underline}
 footer{color:var(--faint);font-size:12px;text-align:center;padding:8px 0;line-height:1.7}
@@ -287,7 +293,9 @@ function renderNBA(evs){
     const tv = (c.broadcasts||[]).flatMap(b=>b.names||[]).slice(0,2).join(' / ');
     const row = t => {
       const ab = t.team.abbreviation;
-      const rec = (t.records||[]).find(r=>r.type==='total')?.summary || '';
+      const raw = (t.records||[]).find(r=>r.type==='total')?.summary || '';
+      const wl = raw.match(/^(\d+)-(\d+)$/);
+      const rec = wl ? `${wl[1]}胜${wl[2]}负` : raw;
       const lose = done && !t.winner;
       return `<div class="team ${lose?'lose':''}">
         <img src="${esc(t.team.logo)}" alt="" loading="lazy" onerror="this.style.visibility='hidden'">
@@ -405,10 +413,21 @@ function renderDetail(){
       } else sc = `<span class="s">vs</span>`;
       const liveish = !x.score && x.ts <= now && now < x.ts + 4*3600;
       const past = x.ts + 4*3600 < now;
-      return `<a class="m ${past?'past':''}" href="${esc(x.link)}" target="_blank" rel="noopener">
+      const finished = !!x.score || past;
+      let watch = '';
+      if (x.vods && x.vods.length){
+        watch = x.vods.map(v=>`<a class="vod" href="${esc(v.u)}" target="_blank" rel="noopener">▶ ${esc(v.l)}</a>`).join('');
+      } else if (finished){
+        const q = encodeURIComponent(`${x.t1} vs ${x.t2} ${x.event.replace(/ - .*$/,'')}`);
+        watch = x.game==='kpl'
+          ? `<a class="vod alt" href="https://search.bilibili.com/all?keyword=${q}" target="_blank" rel="noopener">B站搜回放</a>`
+          : `<a class="vod alt" href="https://www.youtube.com/results?search_query=${q}" target="_blank" rel="noopener">YouTube 搜回放</a>`;
+      }
+      return `<div class="m ${past?'past':''}">
         <div class="tm">${chiTime(x.ts*1000)}<small>${esc(x.bo)}</small></div>
         <div><div class="vs"><span class="${c1}">${esc(x.t1)}</span>${sc}<span class="${c2}">${esc(x.t2)}</span>${liveish?'<span class="tag live">可能进行中</span>':''}</div>
-        <div class="ev"><span class="tag ${x.game}">${GAMES[x.game]}</span>${esc(x.event)}</div></div></a>`;
+        <div class="ev"><span class="tag ${x.game}">${GAMES[x.game]}</span><a href="${esc(x.link)}" target="_blank" rel="noopener">${esc(x.event)}</a></div>
+        ${watch?`<div class="vods">${watch}</div>`:''}</div></div>`;
     }).join('');
   } else {
     h += `<div class="sub">${ts.length ? '赛事进行中，但这一天的具体对阵还没公布（或当天休赛）。' : '这一天没有 KPL / CS S级比赛。'}</div>`;

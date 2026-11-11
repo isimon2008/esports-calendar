@@ -81,8 +81,17 @@ def parse_matches(h, wiki, game):
         tour = re.search(r'match-info-tournament-name"><a href="([^"]*)"[^>]*>(.*?)</a>', b, re.S)
         tname = strip(tour.group(2)) if tour else ""
         link = ("https://liquipedia.net" + html.unescape(tour.group(1))) if tour else ""
+        vods = []
+        area = re.search(r'match-info-vods-area(.*)', b, re.S)
+        if area:
+            for href, label in re.findall(r'<a [^>]*href="(https?://[^"]+)"[^>]*>(.*?)</a>', area.group(1), re.S):
+                lab = strip(label)
+                g = re.match(r"Game\s*(\d+)", lab, re.I)
+                lab = f"第{g.group(1)}局" if g else (lab or "回放")
+                vods.append({"l": lab, "u": html.unescape(href)})
         out.append({
             "game": game,
+            "vods": vods,
             "ts": int(ts.group(1)),
             "t1": teams[0],
             "t2": teams[1],
