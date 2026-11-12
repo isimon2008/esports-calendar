@@ -69,6 +69,7 @@ def parse_matches(h, wiki, game):
         if not ts:
             continue
         names = re.findall(r'<span class="name"[^>]*>(.*?)</span>', b, re.S)
+        slugs = [team_slug(n) for n in names[:2]]
         teams = [strip(n) or "TBD" for n in names[:2]]
         while len(teams) < 2:
             teams.append("TBD")
@@ -83,7 +84,7 @@ def parse_matches(h, wiki, game):
         link = ("https://liquipedia.net" + html.unescape(tour.group(1))) if tour else ""
         vods = []
         area = re.search(r'match-info-vods-area(.*)', b, re.S)
-        if area:
+        if area and game != "cs":  # CS 不要回放，用 HLTV 数据代替
             for href, label in re.findall(r'<a [^>]*href="(https?://[^"]+)"[^>]*>(.*?)</a>', area.group(1), re.S):
                 lab = strip(label)
                 g = re.match(r"Game\s*(\d+)", lab, re.I)
@@ -92,6 +93,7 @@ def parse_matches(h, wiki, game):
         out.append({
             "game": game,
             "vods": vods,
+            "slugs": slugs,
             "ts": int(ts.group(1)),
             "t1": teams[0],
             "t2": teams[1],
@@ -101,6 +103,66 @@ def parse_matches(h, wiki, game):
             "link": link,
         })
     return out
+
+
+def team_slug(fragment):
+    m = re.search(r'<a href="/[a-z]+/([^"#]+)"', fragment or "")
+    return urllib.parse.unquote(html.unescape(m.group(1))) if m else ""
+
+
+def parse_popups(h):
+    """解析赛事页面里每场比赛的弹窗：时间、两队、HLTV 链接、每张地图比分。"""
+    out = []
+    for p in h.split('brkts-match-info-popup"')[1:]:
+        ts = re.search(r'data-timestamp="(\d+)"', p)
+        if not ts:
+            continue
+        head_end = p.find("brkts-popup-body")
+        head = p[:head_end if head_end > 0 else 4000]
+        opp = re.split(r'class="match-info-header-opponent', head)[1:3]
+        slugs = [team_slug(o) for o in opp]
+        hl = re.search(r'href="(https?://(?:www\.)?hltv\.org/matches/\d+[^"]*)"', p)
+        maps = []
+        body = p[head_end:p.find("brkts-popup-footer")] if head_end > 0 else ""
+        for row in body.split('class="brkts-popup-body-grid-row"')[1:]:
+            sc = re.findall(r'detailed-scores-main-score">(\d*)<', row)
+            nm = re.search(r'<a href="/counterstrike/[^"]*"[^>]*>([^<]+)</a>', row)
+            if nm and len(sc) >= 2 and sc[0] != "" and sc[1] != "":
+                maps.append({"m": strip(nm.group(1)), "a": int(sc[0]), "b": int(sc[1])})
+        out.append({"ts": int(ts.group(1)), "slugs": slugs,
+                    "hltv": html.unescape(hl.group(1)) if hl else "", "maps": maps})
+    return out
+
+
+def enrich_cs(matches, max_pages):
+    """给已结束、还没有 HLTV 链接的 CS 比赛补上 HLTV 链接和地图比分（按赛事页面抓取）。"""
+    now = time.time()
+    need = [m for m in matches if m["game"] == "cs" and not m.get("hltv")
+            and re.search(r"\d", m.get("score", "")) and m["ts"] > now - 21 * 86400 and m.get("link")]
+    pages = []
+    for m in sorted(need, key=lambda m: -m["ts"]):
+        path = urllib.parse.unquote(m["link"].split("/counterstrike/", 1)[-1].split("#")[0])
+        if path and path not in pages:
+            pages.append(path)
+    done = 0
+    for path in pages[:max_pages]:
+        try:
+            pops = parse_popups(api_parse("counterstrike", page=path))
+        except Exception as e:
+            print(f"[fail] HLTV 链接 {path}: {e}", file=sys.stderr)
+            continue
+        for m in need:
+            if urllib.parse.unquote(m["link"].split("/counterstrike/", 1)[-1].split("#")[0]) != path:
+                continue
+            cands = [p for p in pops if p["ts"] == m["ts"]]
+            hit = [p for p in cands if set(p["slugs"]) == set(m.get("slugs", []))] or (cands if len(cands) == 1 else [])
+            if hit:
+                if hit[0]["hltv"]:
+                    m["hltv"] = hit[0]["hltv"]
+                if hit[0]["maps"]:
+                    m["maps"] = hit[0]["maps"]
+                done += 1
+    print(f"[ok] HLTV 链接: 补全 {done} 场（抓了 {min(len(pages), max_pages)}/{len(pages)} 个赛事页面）", file=sys.stderr)
 
 
 MONTHS = {m: i for i, m in enumerate(
@@ -210,10 +272,25 @@ def main():
         merged[key(m)] = m
     # 同一时间同一赛事的 TBD 旧条目，被确定了队伍的新条目替换
     for m in matches:
+        prev = merged.get(key(m))
+        if prev:  # 保留以前补全过的 HLTV 链接 / 地图比分
+            for f in ("hltv", "maps"):
+                if prev.get(f) and not m.get(f):
+                    m[f] = prev[f]
+        if m["game"] == "cs":
+            m["vods"] = []
         merged[key(m)] = m
         if "TBD" not in (m["t1"], m["t2"]):
             for side in ((m["t1"], "TBD"), ("TBD", m["t2"]), ("TBD", "TBD")):
                 merged.pop(f'{m["game"]}|{m["ts"]}|{m["event"]}|{side[0]}|{side[1]}', None)
+
+    for m in merged.values():
+        if m["game"] == "cs":
+            m["vods"] = []
+    try:
+        enrich_cs(list(merged.values()), int(os.environ.get("MAX_PAGES", "8")))
+    except Exception as e:
+        errors.append(f"HLTV 链接: {e}")
 
     if not tournaments:
         tournaments = old.get("tournaments", [])
