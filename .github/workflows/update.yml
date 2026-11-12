@@ -5,6 +5,7 @@ on:
   workflow_dispatch:          # 也可以在 Actions 页面手动运行
 permissions:
   contents: write
+  pages: write
 concurrency:
   group: update-data
   cancel-in-progress: false
@@ -25,3 +26,7 @@ jobs:
           git add data.json
           git diff --cached --quiet || git commit -m "update data $(date -u +%F_%H:%M)"
           git push
+      - name: 重新发布网站
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: gh api -X POST "repos/${{ github.repository }}/pages/builds"
